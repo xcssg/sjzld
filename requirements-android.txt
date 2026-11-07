@@ -1,0 +1,13 @@
+# 左方雷达 —— 安卓版 Python 依赖（若采用 Chaquopy 内嵌 Python 方案）
+# 更新日期：2026-11（PyPI 实测最新稳定版）
+# 说明：安卓版解析层推荐 Kotlin 重写；仅当坚持复用 gateway_parser.py
+#       时才用 Chaquopy 装这些包。
+
+# 核心解析依赖
+numpy>=2.5.4
+websockets>=17.4
+protobuf>=7.36.2
+
+# 若用 Chaquopy 打包（在 app/build.gradle 的 python.pip 块里声明），
+# 本文件仅作参考；Windows 版的 pyinstaller/pywebview/pydivert 已全部移除，
+# 安卓不需要。

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">左方雷达</string>
+    <string name="vpn_title">左方雷达</string>
+    <string name="vpn_text">抓包运行中</string>
+    <string name="vpn_channel">radar_capture</string>
+    <string name="vpn_notify_channel_name">抓包</string>
+</resources>

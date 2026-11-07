@@ -1,0 +1,6 @@
+// 左方雷达 —— 根构建脚本
+// 稳定组合：AGP 8.13.2 + Kotlin 2.1.21 + Gradle 8.13
+plugins {
+    id 'com.android.application' version '8.13.2' apply false
+    id 'org.jetbrains.kotlin.android' version '2.1.21' apply false
+}
