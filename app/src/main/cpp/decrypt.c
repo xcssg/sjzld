@@ -88,31 +88,38 @@ Java_com_zuofang_radar_ParserBridge_recoverTable(
     jsize n_datagrams = (*env)->GetArrayLength(env, lengths);
     if (blob_len <= 0 || n_datagrams <= 0) return JNI_FALSE;
 
-    jbyte *blob = (*env)->GetByteArrayElements(env, blob, 0);
+    jbyte *blob_data = (*env)->GetByteArrayElements(env, blob, 0);
     jint *lens = (*env)->GetIntArrayElements(env, lengths, 0);
-    if (blob == NULL || lens == NULL) {
-        if (blob) (*env)->ReleaseByteArrayElements(env, blob, blob, 0);
-        if (lens) (*env)->ReleaseIntArrayElements(env, lengths, lens, 0);
+    if (blob_data == NULL || lens == NULL) {
+        if (blob_data) (*env)->ReleaseByteArrayElements(env, blob, blob_data, JNI_ABORT);
+        if (lens) (*env)->ReleaseIntArrayElements(env, lengths, lens, JNI_ABORT);
         return JNI_FALSE;
     }
 
     if (minCount < 1) minCount = 1;
     if (maxLen < 1) maxLen = 1024;
 
-    /* 每个表位置的候选值计数（256 种可能字节值） */
-    int cnt[TABLE_LEN][256];
-    memset(cnt, 0, sizeof(cnt));
+    /* 每个表位置的候选值计数（256 种可能字节值）。
+       512*256*4 = 512KB，放到堆上，避免 JNI 线程栈溢出 */
+    size_t cnt_size = (size_t) TABLE_LEN * 256 * sizeof(int);
+    int *cnt = (int *) calloc(1, cnt_size);
+    if (cnt == NULL) {
+        (*env)->ReleaseByteArrayElements(env, blob, blob_data, JNI_ABORT);
+        (*env)->ReleaseIntArrayElements(env, lengths, lens, JNI_ABORT);
+        return JNI_FALSE;
+    }
 
     /* 累加每条数据报的 (C[i] ^ C[i-1]) */
     jsize offset = 0;
     for (jsize d = 0; d < n_datagrams; d++) {
         jint len = lens[d];
         if (len <= 0 || len > maxLen) { offset += len; continue; }
+        if (offset + len > blob_len) break;
         uint8_t prev = 0;
         for (jint i = 0; i < len; i++) {
-            uint8_t b = (uint8_t) blob[offset + i];
+            uint8_t b = (uint8_t) blob_data[offset + i];
             uint8_t v = (uint8_t)(b ^ prev);
-            cnt[i & 511][v]++;
+            cnt[(i & 511) * 256 + v]++;
             prev = b;
         }
         offset += len;
@@ -123,21 +130,25 @@ Java_com_zuofang_radar_ParserBridge_recoverTable(
     for (int j = 0; j < TABLE_LEN; j++) {
         int best_v = 0, best_c = -1;
         for (int v = 0; v < 256; v++) {
-            if (cnt[j][v] > best_c) { best_c = cnt[j][v]; best_v = v; }
+            int c = cnt[j * 256 + v];
+            if (c > best_c) { best_c = c; best_v = v; }
         }
         if (best_c < minCount) {
-            (*env)->ReleaseByteArrayElements(env, blob, blob, 0);
-            (*env)->ReleaseIntArrayElements(env, lengths, lens, 0);
+            free(cnt);
+            (*env)->ReleaseByteArrayElements(env, blob, blob_data, JNI_ABORT);
+            (*env)->ReleaseIntArrayElements(env, lengths, lens, JNI_ABORT);
             return JNI_FALSE;       /* 样本不足 */
         }
         table[j] = (uint8_t) best_v;
     }
 
+    free(cnt);
+
     memcpy(key_table, table, TABLE_LEN);
     table_loaded = 1;
 
-    (*env)->ReleaseByteArrayElements(env, blob, blob, 0);
-    (*env)->ReleaseIntArrayElements(env, lengths, lens, 0);
+    (*env)->ReleaseByteArrayElements(env, blob, blob_data, JNI_ABORT);
+    (*env)->ReleaseIntArrayElements(env, lengths, lens, JNI_ABORT);
     return JNI_TRUE;
 }
 
