@@ -8,6 +8,5 @@
 *.log
 app/build/
 app/.cxx/
-app/src/main/assets/radar/
 __pycache__/
 *.pyc
